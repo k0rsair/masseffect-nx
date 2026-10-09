@@ -100,8 +100,8 @@ mesa/build_mesa_docker.sh           # an hour or more and about 15 GB, once
 
 This clones [mesa-switch](https://github.com/danfromtico/mesa-switch) at a pinned commit, applies
 `mesa/mesa-switch-masseffect.patch`, builds NVK and its shader compiler in Docker, and lays out the result as
-`<OUT>/opt/devkitpro/portlibs/switch/lib/libvulkan.a`. By default `OUT` is `mesa-sdk` next to the repository folder
-(`../mesa-sdk`), which is where the next step looks for it. After editing the driver source, use
+`<OUT>/opt/devkitpro/portlibs/switch/lib/libvulkan.a`. By default `OUT` is `out/mesa-sdk` inside the repository,
+which is where the next step looks for it. After editing the driver source, use
 `SRC=<tree> mesa/build_mesa_docker.sh --incremental`. Details, the patch contents and the reference toolchain versions
 are in [mesa.md](mesa.md) and [../mesa/README.md](../mesa/README.md). `APPLY_ONLY=1` only clones and applies the patch.
 The driver is built at `-O2` (`MESA_OPT=2`, the default; `MESA_OPT=1` builds the old `-O1` driver, see mesa.md).

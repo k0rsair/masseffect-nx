@@ -34,6 +34,7 @@
 !/sdk/thirdparty/ffmpeg-overlay
 /sdk/thirdparty/ffmpeg-overlay/*
 !/sdk/thirdparty/ffmpeg-overlay/codec_list.c
+!/sdk/thirdparty/ffmpeg-overlay/config.h
 /mesa/work/
 *.log
 /cache/

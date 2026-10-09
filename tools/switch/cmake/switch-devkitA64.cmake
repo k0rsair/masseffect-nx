@@ -82,7 +82,9 @@ set(_SWITCH_SPECS_CONFIGURED "${CMAKE_BINARY_DIR}/switch.specs")
 file(WRITE "${_SWITCH_SPECS_CONFIGURED}" "${_SWITCH_SPECS_CONTENT}")
 # --allow-multiple-definition: NVK's Rust static libraries each bundle the Rust
 # runtime.
-set(CMAKE_EXE_LINKER_FLAGS_INIT "-specs=${_SWITCH_SPECS_CONFIGURED} -Wl,--gc-sections -Wl,--allow-multiple-definition -Wl,--no-relax")
+# This is a shell flag string, not a CMake argument list. Quote the value so
+# checkouts whose build path contains spaces pass one -specs argument to GCC.
+set(CMAKE_EXE_LINKER_FLAGS_INIT "-specs=\"${_SWITCH_SPECS_CONFIGURED}\" -Wl,--gc-sections -Wl,--allow-multiple-definition -Wl,--no-relax")
 set(CMAKE_DL_LIBS "")
 
 include_directories(SYSTEM

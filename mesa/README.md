@@ -69,7 +69,7 @@ Written, for the app, in its Mesa environment setting. All are optional.
 This is what we did, on macOS arm64 (Apple silicon) with the official `devkitpro/devkita64` image running natively.
 
 ```sh
-mesa/build_mesa_docker.sh             # clone, pin, patch, build, merge; result in ../mesa-sdk (next to the repo)
+mesa/build_mesa_docker.sh             # clone, pin, patch, build, merge; result in out/mesa-sdk
 OUT=/path/to/mesa-sdk mesa/build_mesa_docker.sh
 ```
 
@@ -78,8 +78,7 @@ Needs `git` and `docker`; the first build takes an hour or more and about 15 GB.
 1. `git clone https://github.com/danfromtico/mesa-switch.git`, `git checkout d4a00ea0ab3f59afb967cc5d779e4263d237bd77`,
    `git apply mesa/mesa-switch-masseffect.patch`.
 2. Runs upstream `./build-switch.sh`, which:
-   - builds the image `devkitpro-mesa-rust` from `Docker.rust` (`devkitpro/devkita64:latest` + SPIRV-Tools 1.3.290 +
-     Rust nightly with `rust-src` + `bindgen-cli` and `cbindgen`);
+   - builds the image `devkitpro-mesa-rust-local` from `mesa/Dockerfile.local` (pinned devkitPro base and Rust nightly);
    - builds the native host tools `mesa_clc` and `vtn_bindgen2` (`meson setup builddir-native`);
    - configures the cross build (`meson setup builddir-switch --cross-file switch_cross_file.txt --buildtype=release
      -Doptimization=2 -Db_lto=false -Dvulkan-drivers=nouveau -Dgallium-drivers=nouveau -Dplatforms=switch -Dllvm=disabled ...`);
@@ -102,21 +101,19 @@ frames over 60 ms 160 -> 108 per route), same image.
 
 ```sh
 mesa/build_mesa_docker.sh                         # -O2, the default driver
-OPT=1 mesa/build_mesa_opt.sh                      # -O1 fallback from an existing tree: out/mesa-sdk-o1, ~1 minute
+MESA_OPT=1 OUT=out/mesa-sdk-o1 mesa/build_mesa_docker.sh  # -O1 fallback, separate Docker build volume
 MESA_OPT=O1 tools/build_nro.sh                    # link the -O1 fallback (out/mesa-sdk-o1 or ../mesa-sdk-o1)
-OPT=3 mesa/build_mesa_opt.sh                      # experiments: out/mesa-sdk-o3, link with MESA_SDK=out/mesa-sdk-o3
+MESA_OPT=3 OUT=out/mesa-sdk-o3 mesa/build_mesa_docker.sh  # experiments: link with MESA_SDK=out/mesa-sdk-o3
 ```
 
-`build_mesa_opt.sh` configures its own build directory (`builddir-switch-o<N>`) in an already built tree (it reuses
-`builddir-native` and the Docker image). `--incremental` picks the build directory of the requested level and refuses
-to merge an archive of another level.
+The local Docker build keeps its intermediate directories in volumes keyed by source path and optimization level.
+`--incremental` reuses the volume for the requested level after a full build at that level.
 
 After editing the driver source: `SRC=<tree> mesa/build_mesa_docker.sh --incremental` (needs the Docker image and a
 previous full build in the same tree). If you change NAK, raise the revision number in `nvk_shader.c`.
 
-Reproducibility notes: `Docker.rust` takes the latest Rust nightly and `devkita64:latest`. Our reference build used
-`rustc 1.101.0-nightly (75a75c3e0 2026-09-26)` (LLVM 23.1.1). If a newer nightly fails to build NAK, install that one
-(`rustup toolchain install nightly-2026-09-26`, then `rustup default` it in the image).
+Reproducibility notes: `mesa/Dockerfile.local` pins the devkitPro base and Rust nightly. The build records the Docker
+image identity in `<OUT>/docker-image.json` and the optimization level in `<OUT>/SOURCE.txt`.
 
 ## Windows (MSYS2)
 

@@ -70,7 +70,7 @@ for src in "$HERE"/cpu/test_*.cpp; do
   selected "$name" || continue
   extra_inc=(); extra_src=(); std=c++20; strict=(-Wall -Wextra -Werror); run_args=()
   case "$name" in
-    test_native_crc_fingerprint|test_native_frame_coherence)
+    test_native_crc_fingerprint|test_native_frame_coherence|test_native_shader_load_memo)
       # Benchmark plus equality checks of the texture fingerprint against xxHash.
       [[ -f "$XXHASH/xxhash.h" ]] || { report SKIP "$name" "run tools/fetch_thirdparty.py for xxHash"; continue; }
       extra_inc=(-I"$XXHASH") ;;

@@ -85,6 +85,25 @@ fi
 # The repository (and the Mesa SDK, when it lives elsewhere) is mounted at the same absolute path inside the container,
 # so paths in the generated files stay valid.
 mounts=(-v "$ROOT:$ROOT")
+# macOS bind mounts corrupt seek-written CMake traces and archives in this build.
+# Keep intermediates on a Docker volume, then copy only completed artifacts out.
+volume_build=0
+if [[ "$(uname -s)" == Darwin ]]; then
+  [[ "$NRO_OUT" != /* && "$NRO_OUT" != *..* ]] || { echo 'NRO_OUT must be a repository-relative path' >&2; exit 2; }
+  volume_root="$ROOT/$NRO_OUT"
+  volume_key=$(printf '%s' "$volume_root" | cksum | awk '{print $1}')
+  build_volume="masseffect-nro-$volume_key"
+  if docker volume inspect "$build_volume" >/dev/null 2>&1; then
+    [[ "$(docker volume inspect --format '{{index .Labels "masseffect.build-root"}}' "$build_volume")" == "$volume_root" ]] || {
+      echo "Build volume belongs to another checkout: $build_volume" >&2; exit 1;
+    }
+  else
+    docker volume create --label "masseffect.build-root=$volume_root" "$build_volume" >/dev/null
+  fi
+  mkdir -p "$volume_root"
+  mounts+=(-v "$build_volume:$volume_root" -v "$ROOT:/host-export")
+  volume_build=1
+fi
 case "$MESA_SDK/" in "$ROOT"/*) ;; *) mounts+=(-v "$MESA_SDK:$MESA_SDK:ro") ;; esac
 # The SDK may be a link (a staged edition tree, tools/edition.sh): mount its real folder at its real path. The SDK build writes
 # into <sdk>/out, so a real folder outside the tree is mounted writable (it is shared, edition-independent build output).
@@ -95,7 +114,7 @@ user=()
 
 echo "== configure and build ($NRO_OUT, -j$JOBS)"
 docker run --rm "${user[@]+"${user[@]}"}" "${mounts[@]}" -w "$ROOT" \
-  -e JOBS="$JOBS" -e ROOT="$ROOT" -e SDK_DIR="$SDK_DIR" -e MESA_SDK="$MESA_SDK" -e NRO_OUT="$NRO_OUT" \
+  -e JOBS="$JOBS" -e ROOT="$ROOT" -e SDK_DIR="$SDK_DIR" -e MESA_SDK="$MESA_SDK" -e NRO_OUT="$NRO_OUT" -e VOLUME_BUILD="$volume_build" \
   -e LTO="${MASSEFFECT_LTO:-OFF}" -e PGO="${MASSEFFECT_PGO:-}" -e GEN_OPT="${MASSEFFECT_GEN_OPT:-}" \
   -e APP_VERSION="${MASSEFFECT_VERSION:-1.0.0}" -e UPSCALE_SHADERS="${UPSCALE_SHADERS:-ON}" \
   -e FAST_MATH="${MASSEFFECT_FAST_MATH:-ON}" \
@@ -120,6 +139,12 @@ docker run --rm "${user[@]+"${user[@]}"}" "${mounts[@]}" -w "$ROOT" \
     # crt0 must be first in .text or the NRO does not boot
     /opt/devkitpro/devkitA64/bin/aarch64-none-elf-nm "$NRO_OUT/masseffect" | grep "^0000000000000000 T _start$" >/dev/null
     echo "OK: _start at 0"
+    if [[ "$VOLUME_BUILD" == 1 ]]; then
+      for file in masseffect masseffect.nro CMakeCache.txt; do
+        cp "$NRO_OUT/$file" "/host-export/$NRO_OUT/$file"
+        cmp "$NRO_OUT/$file" "/host-export/$NRO_OUT/$file"
+      done
+    fi
   '
 
 # The CMake target is called masseffect; the app looks for masseffect-nx.nro next to its configuration (SD card:

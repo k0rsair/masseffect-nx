@@ -38,7 +38,7 @@ int main() {
 
   rp::BindThisThread(true);
   rp::Take(ticks, entries);  // start a clean interval
-  const uint64_t t0 = rp::Now();
+  const uint64_t t0 = rp::g_state.last;  // same tick used by Take; Now() would leave counted time before t0
   Busy(std::chrono::microseconds(1000));  // parse
   {
     rp::Scope draw(rp::kDrawVulkan);

@@ -88,6 +88,20 @@ def main():
                 shutil.rmtree(work, onexc=remove_readonly)
             else:
                 shutil.rmtree(work, onerror=remove_readonly)
+    # FFmpeg's own .gitignore excludes config.h. Keep the fork selector in a
+    # tracked overlay and install it after fetching the upstream platform files.
+    selector = os.path.join(root, 'sdk', 'thirdparty', 'ffmpeg-overlay', 'config.h')
+    destination = os.path.join(target, 'FFmpeg', 'config.h')
+    with open(selector, 'rb') as f:
+        desired = f.read()
+    current = None
+    if os.path.isfile(destination):
+        with open(destination, 'rb') as f:
+            current = f.read()
+    if current != desired:
+        os.makedirs(os.path.dirname(destination), exist_ok=True)
+        shutil.copyfile(selector, destination)
+        print(f'Installed fork FFmpeg platform selector: {destination}')
     print(f'{copied} files copied into {target}, {kept} files of this fork kept')
 
 

@@ -36,9 +36,8 @@ It takes an hour or more and about 15 GB the first time. The NRO link depends on
 (`LINK_DEPENDS` in `sdk/cmake/rexglue_switch.cmake`, since 2026-10-07), so a rebuilt or swapped `libvulkan.a` is relinked
 by the next `tools/build_nro.sh`; older build folders that were configured before that change should be deleted once. If you change NAK, raise the shader cache revision in
 `nvk_shader.c`, because on Horizon the cache's build id is the package version and shaders compiled by an older NAK would
-be reused. The Docker image takes the latest Rust nightly; the reference build used `rustc 1.101.0-nightly (2026-09-26)`,
-and if a newer nightly breaks the NAK build, install that one. `build_mesa_msys2.sh` (Windows) was not tested with this
-patch.
+be reused. The local Docker image uses a pinned Rust nightly (see `mesa/Dockerfile.local`); the image identity is saved in
+`out/mesa-sdk/docker-image.json`. `build_mesa_msys2.sh` (Windows) was not tested with this patch.
 
 ### Optimization level: -O2 by default
 
@@ -50,13 +49,12 @@ same. The analysis is in [nvk-per-draw.md](nvk-per-draw.md).
 
 | Driver | How to build it | How to link it |
 |---|---|---|
-| -O2 (default) | `mesa/build_mesa_docker.sh` (`MESA_OPT=2`), or `OPT=2 OUT=out/mesa-sdk mesa/build_mesa_opt.sh` from an existing tree (about 1 minute) | `tools/build_nro.sh` / `tools/edition.sh` as usual (`out/mesa-sdk`) |
-| -O1 (fallback) | `OPT=1 mesa/build_mesa_opt.sh` (writes `out/mesa-sdk-o1`), or `MESA_OPT=1 OUT=.../mesa-sdk-o1 mesa/build_mesa_docker.sh` | `MESA_OPT=O1 tools/build_nro.sh` or `MESA_OPT=O1 tools/edition.sh ru all` (uses `out/mesa-sdk-o1`, then `../mesa-sdk-o1`) |
+| -O2 (default) | `mesa/build_mesa_docker.sh` (`MESA_OPT=2`) | `tools/build_nro.sh` / `tools/edition.sh` as usual (`out/mesa-sdk`) |
+| -O1 (fallback) | `MESA_OPT=1 OUT=out/mesa-sdk-o1 mesa/build_mesa_docker.sh` | `MESA_OPT=O1 tools/build_nro.sh` or `MESA_OPT=O1 tools/edition.sh ru all` (uses `out/mesa-sdk-o1`, then `../mesa-sdk-o1`) |
 
 `SOURCE.txt` in the SDK folder records the level, `tools/build_nro.sh` prints it before building, and the release
-workflow warns when its `MESA_SDK` is not recorded as `-Doptimization=2`. `--incremental` uses the build folder of
-the requested level (`builddir-switch`, or `builddir-switch-o<N>` of `build_mesa_opt.sh`) and refuses to merge an
-archive of another level.
+workflow warns when its `MESA_SDK` is not recorded as `-Doptimization=2`. `--incremental` reuses the Docker build
+volume keyed by source path and optimization level.
 
 ## ZCULL: skipping hidden pixels
 
